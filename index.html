@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./node_modules/@fortawesome/fontawesome-free/css/all.min.css">
+    <title>Electron To Do</title>
+</head>
+
+<body>
+    <div class="container">
+        <form id="form-item" action="">
+            <div class="form-group">
+                <label for="item">Item</label>
+                <input type="text" name="item" class="form-control" required>
+            </div>
+            <button class="btn btn-primary mt-2" type="submit">Enviar</button>
+        </form>
+
+        <ul id="my-list" class="list-group mt-4">
+
+        </ul>
+    </div>
+</body>
+<script>
+    const { ipcRenderer } = require('electron');
+
+    var list = []
+
+    document.addEventListener('DOMContentLoaded', () => {                
+        //printItems();   
+        ipcRenderer.send("get");     
+    })
+
+    document.querySelector('#form-item').addEventListener('submit', (event) => {
+        event.preventDefault(); //Evitar recargar                
+        let item = document.querySelector("[name='item']");
+
+        if (item.value) {
+
+            let obj = new Object
+            obj.name = item.value
+
+            ipcRenderer.send('save-item', obj);
+
+            ipcRenderer.once("save-status", (event, args) => {
+                alert(`Success: ${args.Success} \n Message: ${args.Message}`)
+            })            
+
+        }
+        ipcRenderer.send("get");        
+        item.value = '';
+        printItems()
+    })
+
+    ipcRenderer.on("data-items", (event, args) => {
+        list = args;
+        printItems();
+    })
+
+    function printItems() {        
+        document.getElementById("my-list").innerHTML = ""        
+
+        for (i=0; i < list.length; i++){            
+            item = document.createElement("li");            
+            item.textContent = list[i].name;
+            item.className = "list-group-item d-flex justify-content-between align-items-start";            
+            item.setAttribute("data-id", list[i].id)
+
+            b = document.createElement("button")            
+            b.className = "btn bg-danger rounded-pill text-light item-delete"                        
+            b.addEventListener('click', itemDelete)
+
+            ic = document.createElement("i")            
+            ic.className = "fa-regular fa-trash-can"
+            b.appendChild(ic)
+
+            item.appendChild(b)
+
+            document.getElementById("my-list").appendChild(item);
+        }
+    }
+
+    function itemDelete(event) {
+        let item = ""
+
+        if (event.target.tagName == "I") {
+            item = event.target.parentElement.parentElement
+        } else {
+            item = event.target.parentElement
+        }
+
+        item.remove();        
+        let id = item.getAttribute('data-id', 1);
+        ipcRenderer.send("remove-item", id)        
+        ipcRenderer.once("delete-result", (event, args) => {
+                alert(`${args}`)
+        })            
+        
+    }
+
+</script>
+
+</html>
